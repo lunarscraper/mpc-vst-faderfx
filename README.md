@@ -20,3 +20,7 @@ Tempo follows the MPC. Put it on the master or a track as an insert; assign the 
 
 Build: Actions -> "VST release (draft)". Offline test: `vst/test.sh`. License: MIT.
 The skin font (Titillium Web, `vst/fonts/`) is under the SIL Open Font License.
+
+## Hinweis
+
+Entwickelt mit Unterstützung von Claude (Anthropic)
