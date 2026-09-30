@@ -1,0 +1,219 @@
+{
+ "name": "Fader FX",
+ "params": [
+  {
+   "key": "fader",
+   "name": "Fader",
+   "min": 0,
+   "max": 100,
+   "default": 0,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "flt_on",
+   "name": "Filter",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 1
+  },
+  {
+   "key": "flt",
+   "name": "Filter LP/HP",
+   "min": -100,
+   "max": 100,
+   "default": 70,
+   "display": "int"
+  },
+  {
+   "key": "flt_res",
+   "name": "Resonance",
+   "min": 0,
+   "max": 100,
+   "default": 30,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "rpt_on",
+   "name": "Repeat",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "rpt_div",
+   "name": "Repeat Max",
+   "options": [
+    "1/4",
+    "1/8",
+    "1/16",
+    "1/32"
+   ],
+   "default": 2
+  },
+  {
+   "key": "crush_on",
+   "name": "Crush",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "crush",
+   "name": "Crush Amt",
+   "min": 0,
+   "max": 100,
+   "default": 70,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "gate_on",
+   "name": "Gater",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "gate",
+   "name": "Gate Depth",
+   "min": 0,
+   "max": 100,
+   "default": 100,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "gate_div",
+   "name": "Gate Rate",
+   "options": [
+    "1/4",
+    "1/8",
+    "1/16",
+    "1/32"
+   ],
+   "default": 2
+  },
+  {
+   "key": "rise_on",
+   "name": "Riser",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "rise",
+   "name": "Riser Level",
+   "min": 0,
+   "max": 100,
+   "default": 60,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "drop_on",
+   "name": "Drop",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "drop",
+   "name": "Drop Depth",
+   "min": 0,
+   "max": 100,
+   "default": 80,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "dly_on",
+   "name": "Delay",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 1
+  },
+  {
+   "key": "dly",
+   "name": "Delay Send",
+   "min": 0,
+   "max": 100,
+   "default": 60,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "dly_div",
+   "name": "Delay Time",
+   "options": [
+    "1/16",
+    "1/8",
+    "1/8.",
+    "1/4",
+    "1/4.",
+    "1/2"
+   ],
+   "default": 2
+  },
+  {
+   "key": "dly_fb",
+   "name": "Feedback",
+   "min": 0,
+   "max": 90,
+   "default": 50,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "rev_on",
+   "name": "Reverb",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "rev",
+   "name": "Reverb Send",
+   "min": 0,
+   "max": 100,
+   "default": 60,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "rev_size",
+   "name": "Size",
+   "min": 0,
+   "max": 100,
+   "default": 70,
+   "display": "int",
+   "unit": "%"
+  },
+  {
+   "key": "rev_freeze",
+   "name": "Freeze",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  }
+ ]
+}

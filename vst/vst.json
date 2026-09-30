@@ -1,0 +1,26 @@
+{
+  "name": "Fader FX",
+  "vendor": "lunarscraper",
+  "uid": "FdFx",
+  "version": 1000,
+  "so": "fader_fx.so",
+  "params": "params.json",
+  "layout": "layout.conf",
+  "effect": true,
+  "defines": {
+    "HAS_LFO_BPM": 1
+  },
+  "title_font": "fonts/TitilliumWeb-SemiBold.ttf",
+  "build": {
+    "root": "..",
+    "sources": [
+      "src/djfx.c"
+    ],
+    "cflags": [
+      "-Isrc"
+    ],
+    "libs": [
+      "-lm"
+    ]
+  }
+}
