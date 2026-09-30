@@ -11,6 +11,9 @@ zuschneiden (1000x60 -> 128 x 60 = 7680 px hoch) und in TUI.json die Bounds anpa
 Knob-Bounds = Slidergröße, Name/Value-Labels und die platzierte Komponente um den
 weggefallenen Rand verschieben.
 
+Zusätzlich: Beschriftungen unter den Schaltern (toggle) größer. shadow_skin.py setzt sie fest auf
+15 px (label_scale wirkt dort nicht); hier werden sie auf TOGGLE_LABEL_PX vergrößert.
+
 Aufruf: fix_slider.py <Ordner "Plugin Skins">
 """
 import glob
@@ -23,6 +26,7 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
 LIMIT = 16384
+TOGGLE_LABEL_PX = 21.0   # Schriftgröße der Schalter-Beschriftung (Generator: 15)
 
 
 def parse_bounds(s):
@@ -90,6 +94,40 @@ def main(skin_dir):
             b[3] -= py
             c["bounds"]["bounds"] = fmt(b)
 
+    # 4. Schalter-Beschriftungen vergrößern (Label "Name" in allen shToggle-Definitionen)
+    grow = {}
+    for d in defs:
+        if not d["key"].startswith("shToggle"):
+            continue
+        for c in d["value"]["componentsData"]:
+            cd = c["componentData"]
+            if cd["type"] != "Label" or cd["data"].get("type") != "Name":
+                continue
+            font = cd["data"]["textStyle"]["font"]
+            if font["height"] >= TOGGLE_LABEL_PX:
+                continue
+            b = parse_bounds(c["bounds"]["bounds"])
+            extra = int(round(TOGGLE_LABEL_PX - font["height"])) + 4
+            font["height"] = TOGGLE_LABEL_PX
+            b[3] += extra
+            c["bounds"]["bounds"] = fmt(b)
+            grow[d["key"]] = extra
+        if d["key"] in grow:
+            for c in d["value"]["componentsData"]:
+                if c["componentData"]["type"] == "Focus":
+                    b = parse_bounds(c["bounds"]["bounds"])
+                    b[3] += grow[d["key"]]
+                    c["bounds"]["bounds"] = fmt(b)
+    for d in defs:
+        for c in d["value"].get("componentsData", []):
+            extra = grow.get(c["componentData"]["type"])
+            if extra:
+                b = parse_bounds(c["bounds"]["bounds"])
+                b[3] += extra
+                c["bounds"]["bounds"] = fmt(b)
+    if grow:
+        print("fix_slider: Schalter-Beschriftung auf %g px vergrößert (%s)" % (TOGGLE_LABEL_PX, ", ".join(grow)))
+
     json.dump(tui, open(tui_path, "w", encoding="utf-8"), indent=1)
 
     too_tall = []
@@ -99,7 +137,7 @@ def main(skin_dir):
                 too_tall.append("%s (%d px)" % (os.path.basename(f), im.size[1]))
     if too_tall:
         print("fix_slider: WARNUNG, weiterhin über %d px: %s" % (LIMIT, ", ".join(too_tall)))
-    elif not fixed:
+    elif not fixed and not grow:
         print("fix_slider: nichts zu tun")
 
 
