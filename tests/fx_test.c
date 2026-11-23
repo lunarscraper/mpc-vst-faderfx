@@ -73,7 +73,7 @@ static int idx(AEffect *a, const char *name) {
     for (int i = 0; i < a->numParams; i++) { a->d(a, 8, i, 0, b, 0); if (!strcmp(b, name)) return i; }
     printf("no param %s\n", name); fails++; return 0;
 }
-static const char *ONS[] = {"Filter", "Repeat", "Crush", "Gater", "Riser", "Drop", "Delay", "Reverb"};
+static const char *ONS[] = {"Filter On", "Repeat On", "Crush On", "Gater On", "Riser On", "Drop On", "Delay On", "Reverb On"};
 
 int main(void) {
     setenv("FADERFX_NO_ALSA", "1", 1);   /* no ALSA port in the offline test */
@@ -151,7 +151,7 @@ int main(void) {
     djfx_test_cc(10, 29, 0); a->setP(a, fader, 0.0f); run(a, 400, 0, 0);
 
     /* chunk round-trip */
-    int flt = idx(a, "Filter LP/HP");
+    int flt = idx(a, "LP/HP");
     a->setP(a, flt, 0.1f);
     void *ck = 0; intptr_t n = a->d(a, 23, 0, 0, &ck, 0);
     char saved[2048]; memcpy(saved, ck, n);

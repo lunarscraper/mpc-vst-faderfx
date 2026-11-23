@@ -18,6 +18,21 @@ at the origin again. Built on [mpc-vst-plugins](https://github.com/open-mpc/mpc-
 Tempo follows the MPC. Put it on the master or a track as an insert; assign the FADER to a Q-Link
 (it is Q-Link 1 on the Perform page) or use the touchscreen fader.
 
+## Force-Look (Version 1.2.0)
+
+Neuer Skin wie bei Rattler 1.1: große Schrift, große Bedienflächen und eine eigene, bunte Seite (Nachtclub-Rot mit
+Orange). PERFORM zeigt pro Effekt eine Spalte mit großer Überschrift, **OFF | ON** als zwei große Felder und darunter
+den Regler; der **FADER** liegt groß in einem eigenen Feld darunter. SETUP: TIMING (Repeat Max, Gate Rate, Delay Time
+als große Felder), SPACE (Feedback, Size, Freeze) und MIDI (CONTROL CH). Die Bildschirmnamen sind kurz (LP/HP, Reso,
+Crush …; die Schalter heißen „Filter On“ usw.), damit sie in großer Schrift passen. Parameter, Q-Links, CCs und
+gespeicherte Projekte bleiben unverändert.
+
+Technik: `vst/force_look.py` (aus Rattler übernommen) läuft als `skin_post` von `gen_vst.py` und malt die Bilder des
+Generators neu; `vst/fix_slider.py` schneidet danach den FADER-Filmstrip zu, vergrößert seine Beschriftung und malt
+ihn im selben Look. Der Workflow nutzt dafür open-mpc/mpc-vst-plugins Stand 1af05b9 (wie Rattler; installiert nach
+„VST2 Plugins“ ab MPC OS 3.10.1). Nach dem Installieren die Force einmal neu starten: MPC lädt einen geänderten Skin
+erst nach einem Neustart.
+
 ## Steuerung per MIDI-CC (seit 1.1.0)
 
 Fader FX hat einen eigenen MIDI-Port **Control In** (in den MIDI-Listen „Fader FX Control In“). Er verbindet

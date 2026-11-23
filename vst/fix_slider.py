@@ -14,6 +14,9 @@ weggefallenen Rand verschieben.
 Zusätzlich: Beschriftungen unter den Schaltern (toggle) größer. shadow_skin.py setzt sie fest auf
 15 px (label_scale wirkt dort nicht); hier werden sie auf TOGGLE_LABEL_PX vergrößert.
 
+1.2.0 (Force-Look): Slider-Name und -Wert größer (SLIDER_NAME_PX / SLIDER_VALUE_PX) und den zugeschnittenen
+FADER-Filmstrip im Force-Look neu malen (force_look.slider_h_frame, Farben aus den #@look-Zeilen von layout.conf).
+
 Aufruf: fix_slider.py <Ordner "Plugin Skins">
 """
 import glob
@@ -27,6 +30,8 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 LIMIT = 16384
 TOGGLE_LABEL_PX = 21.0   # Schriftgröße der Schalter-Beschriftung (Generator: 15)
+SLIDER_NAME_PX = 26.0    # Name unter dem FADER (Generator: 17)
+SLIDER_VALUE_PX = 32.0   # Wert unter dem FADER (Generator: 22)
 
 
 def parse_bounds(s):
@@ -128,6 +133,73 @@ def main(skin_dir):
     if grow:
         print("fix_slider: Schalter-Beschriftung auf %g px vergrößert (%s)" % (TOGGLE_LABEL_PX, ", ".join(grow)))
 
+    # 5. Slider-Name und -Wert vergrößern (Labels "Name"/"Value" in den shSlider-Definitionen), die Komponente
+    #    wächst um den Zuwachs nach unten
+    sgrow = {}
+    for d in defs:
+        if not d["key"].startswith("shSlider"):
+            continue
+        add = 0
+        labels = sorted((c for c in d["value"]["componentsData"] if c["componentData"]["type"] == "Label"),
+                        key=lambda c: parse_bounds(c["bounds"]["bounds"])[1])
+        for c in labels:
+            cd = c["componentData"]
+            want = {"Name": SLIDER_NAME_PX, "Value": SLIDER_VALUE_PX}.get(cd["data"].get("type"))
+            font = cd["data"].get("textStyle", {}).get("font")
+            if not want or not font:
+                continue
+            b = parse_bounds(c["bounds"]["bounds"])
+            b[1] += add
+            if font["height"] < want:
+                extra = int(round(want - font["height"])) + 4
+                font["height"] = want
+                b[3] += extra
+                add += extra
+            c["bounds"]["bounds"] = fmt(b)
+        if add:
+            for c in d["value"]["componentsData"]:
+                if c["componentData"]["type"] == "Focus":
+                    b = parse_bounds(c["bounds"]["bounds"])
+                    b[3] += add
+                    c["bounds"]["bounds"] = fmt(b)
+            sgrow[d["key"]] = add
+    for d in defs:
+        for c in d["value"].get("componentsData", []):
+            extra = sgrow.get(c["componentData"]["type"])
+            if extra:
+                b = parse_bounds(c["bounds"]["bounds"])
+                b[3] += extra
+                c["bounds"]["bounds"] = fmt(b)
+    if sgrow:
+        print("fix_slider: Slider-Beschriftung vergrößert (%s)" % ", ".join(sgrow))
+
+    # 6. Horizontale Slider im Force-Look neu malen (nur wenn der Strip jetzt w x h-Frames hat)
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        sys.path.insert(0, here)
+        import force_look
+        L = force_look.look_of(os.path.join(here, json.load(open(os.path.join(here, "vst.json")))["layout"]))
+    except Exception as e:   # noqa: BLE001 - ohne Force-Look bleibt der Generator-Slider
+        L = None
+        print("fix_slider: Force-Look nicht verfügbar (%s), FADER bleibt wie generiert" % e)
+    if L:
+        for d in defs:
+            m = re.match(r"shSlider_h_(\d+)x(\d+)", d["key"])
+            if not m:
+                continue
+            w, h = int(m.group(1)), int(m.group(2))
+            knob = next((c for c in d["value"]["componentsData"] if c["componentData"]["type"] == "Knob"), None)
+            if not knob:
+                continue
+            strip = os.path.join(skin_dir, knob["componentData"]["data"]["filmStrip"])
+            with Image.open(strip) as img:
+                size = img.size
+            if size[0] != w or size[1] % h:
+                print("fix_slider: %s nicht zugeschnitten (%s), nicht neu gemalt" % (os.path.basename(strip), size))
+                continue
+            force_look.slider_h_strip(w, h, size[1] // h, L).save(strip)
+            print("fix_slider: %s im Force-Look gemalt" % os.path.basename(strip))
+
     json.dump(tui, open(tui_path, "w", encoding="utf-8"), indent=1)
 
     too_tall = []
@@ -137,7 +209,7 @@ def main(skin_dir):
                 too_tall.append("%s (%d px)" % (os.path.basename(f), im.size[1]))
     if too_tall:
         print("fix_slider: WARNUNG, weiterhin über %d px: %s" % (LIMIT, ", ".join(too_tall)))
-    elif not fixed and not grow:
+    elif not fixed and not grow and not sgrow:
         print("fix_slider: nichts zu tun")
 
 
