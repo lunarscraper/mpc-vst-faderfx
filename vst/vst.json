@@ -2,7 +2,7 @@
   "name": "Fader FX",
   "vendor": "lunarscraper",
   "uid": "FdFx",
-  "version": 1200,
+  "version": 1201,
   "so": "fader_fx.so",
   "params": "params.json",
   "layout": "layout.conf",
@@ -23,6 +23,5 @@
       "-lm"
     ]
   },
-  "skin_post": "force_look.py",
-  "_comment": " 1.2.0: Force-Look skin (force_look.py as skin_post, as Rattler 1.1); short on-screen names."
+  "_comment": " 1.2.1: force_look.py is called from build.sh (build_port.sh ignores skin_post). 1.2.0: Force-Look skin; short on-screen names."
 }

@@ -4,7 +4,7 @@ segments, arc knobs, white slider caps - on a colourful page of its own (gradien
 behind the controls), after mpc-vst-plugins' gen_vst.py has written it. Controls are drawn with a transparent ground
 (the Force shows RGBA control images over the page, as Jamiro's skin does), so they sit on the art.
 
-vst.json runs it as its "skin_post" (gen_vst.py calls `python3 force_look.py <skin dir>` with the port's vst/
+Fader FX: vst/build.sh runs it (build_port.sh ignores "skin_post"; gen_vst.py would call `python3 force_look.py <skin dir>` with the port's vst/
 folder as working directory). It only repaints images the generator made, keeping every file name and size, so
 TUI.json, the touch boxes and the Q-Links stay exactly as the generator built them:
 

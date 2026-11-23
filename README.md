@@ -18,7 +18,7 @@ at the origin again. Built on [mpc-vst-plugins](https://github.com/open-mpc/mpc-
 Tempo follows the MPC. Put it on the master or a track as an insert; assign the FADER to a Q-Link
 (it is Q-Link 1 on the Perform page) or use the touchscreen fader.
 
-## Force-Look (Version 1.2.0)
+## Force-Look (ab Version 1.2.0, im Build wirksam ab 1.2.1)
 
 Neuer Skin wie bei Rattler 1.1: große Schrift, große Bedienflächen und eine eigene, bunte Seite (Nachtclub-Rot mit
 Orange). PERFORM zeigt pro Effekt eine Spalte mit großer Überschrift, **OFF | ON** als zwei große Felder und darunter
