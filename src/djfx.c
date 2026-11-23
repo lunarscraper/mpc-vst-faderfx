@@ -14,6 +14,14 @@
  *
  * Tempo comes from the host (HAS_LFO_BPM -> "lfo_bpm"). Fixed 44.1 kHz, 128-frame
  * int16 stereo blocks, per the engine contract. Everything is allocated at create().
+ *
+ * 1.1.0, CONTROL BY MIDI CC: an own ALSA port "Control In" (ctlin.h) that subscribes itself to every hardware
+ * MIDI input. CCs on CONTROL CH (SETUP; OFF, 1-16, start 11) set the parameters, see cc_param() and the README:
+ *   20 fader  21 lp/hp  22 resonance  23 crush  24 gate  25 riser  26 drop  27 delay send  28 reverb send
+ *   29 filter on  30 repeat on  31 crush on  32 gater on  33 riser on  34 drop on  35 delay on  36 reverb on
+ *   40 repeat max  41 gate rate  42 delay time  43 feedback  44 size  45 freeze
+ * (20-35 in the order of the PERFORM page's Q-Links.) Switches are on from 64. MPC's screen follows through
+ * mpc_engine_changed() where the wrapper asks for it; elsewhere the sound changes and the screen keeps the old value.
  * ========================================================================== */
 #include <math.h>
 #include <stdint.h>
@@ -21,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "engine.h"
+#include "ctlin.h"
 
 #define SR 44100.0f
 #define TWO_PI 6.28318530718f
@@ -35,20 +44,22 @@ typedef struct { const char *key; float v; } pv_t;
 enum {
     P_FADER, P_FLT_ON, P_FLT, P_FLT_RES, P_RPT_ON, P_RPT_DIV, P_CRUSH_ON, P_CRUSH,
     P_GATE_ON, P_GATE, P_GATE_DIV, P_RISE_ON, P_RISE, P_DROP_ON, P_DROP,
-    P_DLY_ON, P_DLY, P_DLY_DIV, P_DLY_FB, P_REV_ON, P_REV, P_REV_SIZE, P_REV_FREEZE, P_COUNT
+    P_DLY_ON, P_DLY, P_DLY_DIV, P_DLY_FB, P_REV_ON, P_REV, P_REV_SIZE, P_REV_FREEZE, P_CTL_CH, P_COUNT
 };
 static const pv_t DEFAULTS[P_COUNT] = {
     {"fader", 0}, {"flt_on", 1}, {"flt", 70}, {"flt_res", 30}, {"rpt_on", 0}, {"rpt_div", 2},
     {"crush_on", 0}, {"crush", 70}, {"gate_on", 0}, {"gate", 100}, {"gate_div", 2},
     {"rise_on", 0}, {"rise", 60}, {"drop_on", 0}, {"drop", 80},
     {"dly_on", 1}, {"dly", 60}, {"dly_div", 2}, {"dly_fb", 50},
-    {"rev_on", 0}, {"rev", 60}, {"rev_size", 70}, {"rev_freeze", 0},
+    {"rev_on", 0}, {"rev", 60}, {"rev_size", 70}, {"rev_freeze", 0}, {"ctl_ch", 11},
 };
 
 typedef struct { float ic1, ic2; } svf_t;   /* TPT state-variable filter state, one channel */
 
 typedef struct {
     float p[P_COUNT];
+    ci_port_t ctl;                         /* "Control In" (1.1.0) */
+    uint32_t changed;                      /* parameters a CC set, for MPC's screen (mpc_engine_changed), a bit each */
     float bpm;
     float fader_s;                         /* smoothed fader 0..1 */
     uint32_t rng;
@@ -92,6 +103,9 @@ typedef struct {
 
     char state[1024];
 } djfx_t;
+#ifdef DJFX_TEST
+static djfx_t *g_last;   /* the offline test steers the last instance created */
+#endif
 
 static const int FDN_BASE[FDN_N] = {1117, 1453, 1777, 2111};
 
@@ -133,9 +147,13 @@ static void *create(const char *data_dir) {
     d->gate_g = 1.0f;
     d->rev_size_s = d->p[P_REV_SIZE] / 100.0f;
     d->flt_amt_s = 0.0f;
+    ci_open(&d->ctl, "Fader FX");
+#ifdef DJFX_TEST
+    g_last = d;
+#endif
     return d;
 }
-static void destroy(void *inst) { free(inst); }
+static void destroy(void *inst) { djfx_t *d = inst; ci_close(&d->ctl); free(inst); }
 static void midi(void *inst, const uint8_t *msg, int len) { (void)inst; (void)msg; (void)len; }
 
 static int find_key(const char *key) {
@@ -175,12 +193,46 @@ static int get_param(void *inst, const char *key, char *buf, int buf_len) {
 }
 static void render(void *inst, int16_t *out, int frames) { (void)inst; memset(out, 0, sizeof(int16_t) * 2 * frames); }
 
+/* ---- control by MIDI CC (1.1.0) --------------------------------------------------- */
+/* CC -> parameter and its range in UI units (lo, hi); n > 0 = an option list of n entries */
+typedef struct { int p; float lo, hi; int n; } ccmap_t;
+static int cc_param(int cc, ccmap_t *m) {
+    static const ccmap_t A[17] = {
+        {P_FADER, 0, 100, 0}, {P_FLT, -100, 100, 0}, {P_FLT_RES, 0, 100, 0}, {P_CRUSH, 0, 100, 0}, {P_GATE, 0, 100, 0},
+        {P_RISE, 0, 100, 0}, {P_DROP, 0, 100, 0}, {P_DLY, 0, 100, 0}, {P_REV, 0, 100, 0},
+        {P_FLT_ON, 0, 1, 2}, {P_RPT_ON, 0, 1, 2}, {P_CRUSH_ON, 0, 1, 2}, {P_GATE_ON, 0, 1, 2}, {P_RISE_ON, 0, 1, 2},
+        {P_DROP_ON, 0, 1, 2}, {P_DLY_ON, 0, 1, 2}, {P_REV_ON, 0, 1, 2}};
+    static const ccmap_t B[6] = {
+        {P_RPT_DIV, 0, 3, 4}, {P_GATE_DIV, 0, 3, 4}, {P_DLY_DIV, 0, 5, 6}, {P_DLY_FB, 0, 90, 0}, {P_REV_SIZE, 0, 100, 0},
+        {P_REV_FREEZE, 0, 1, 2}};
+    if (cc >= 20 && cc <= 36) { *m = A[cc - 20]; return 1; }
+    if (cc >= 40 && cc <= 45) { *m = B[cc - 40]; return 1; }
+    return 0;
+}
+static void control_cc(djfx_t *d, int ch, int cc, int val) {
+    const int sel = (int)lrintf(d->p[P_CTL_CH]);   /* 0 = OFF, else channel 1..16 */
+    if (sel <= 0 || ch != sel - 1) return;
+    ccmap_t m;
+    if (!cc_param(cc, &m)) return;
+    float v;
+    if (m.n == 2) v = val >= 64 ? 1.0f : 0.0f;                                  /* a switch: on from 64 */
+    else if (m.n > 2) v = (float)lrintf(val * (m.n - 1) / 127.0f);              /* the nearest option */
+    else v = (float)lrintf(m.lo + (m.hi - m.lo) * val / 127.0f);               /* whole UI units, as the screen shows */
+    if (d->p[m.p] != v) { d->p[m.p] = v; d->changed |= 1u << m.p; }
+}
+/* offline test: a CC as if it had come in on Control In, on the last instance created */
+#ifdef DJFX_TEST
+void djfx_test_cc(int ch, int cc, int val);
+void djfx_test_cc(int ch, int cc, int val) { if (g_last) control_cc(g_last, ch, cc, val); }
+#endif
+
 static const float RPT_FRAC[4]  = {1.0f, 0.5f, 0.25f, 0.125f};          /* 1/4 .. 1/32 in quarters */
 static const float GATE_FRAC[4] = {1.0f, 0.5f, 0.25f, 0.125f};
 static const float DLY_FRAC[6]  = {0.25f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f};  /* 1/16 1/8 1/8. 1/4 1/4. 1/2 */
 
 static void process(void *inst, const int16_t *in, int16_t *out, int frames) {
     djfx_t *d = inst;
+    for (int ch, cc, val, k = 0; k < 256 && ci_read_cc(&d->ctl, &ch, &cc, &val); k++) control_cc(d, ch, cc, val);
     const float *p = d->p;
     const float qn = beat_samples(d);
 
@@ -350,3 +402,14 @@ static void process(void *inst, const int16_t *in, int16_t *out, int frames) {
 
 static const mpc_engine_t ENGINE = { create, destroy, midi, set_param, get_param, render, process };
 const mpc_engine_t *mpc_engine(void) { return &ENGINE; }
+
+/* After each block a wrapper that knows this hook asks which parameters a CC changed, one at a time, and tells MPC, so
+ * the screen and the Q-Links follow (as in Percolator). A wrapper without it never asks: the sound still changes. */
+int mpc_engine_changed(void *inst, char *key, int len);
+int mpc_engine_changed(void *inst, char *key, int len) {
+    djfx_t *d = inst;
+    if (!d->changed) return 0;
+    const int b = __builtin_ctz(d->changed);
+    d->changed &= d->changed - 1;
+    return snprintf(key, len, "%s", DEFAULTS[b].key) > 0;
+}

@@ -4,6 +4,7 @@
  * chunk round-trip, rough CPU cost per block. Prints PASSED/FAILED. */
 #include <math.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -31,6 +32,7 @@ typedef struct {
     int32_t timeSigNumerator, timeSigDenominator, smpteOffset, smpteFrameRate, samplesToNextClock, flags;
 } VstTimeInfo;
 AEffect *VSTPluginMain(audioMasterCallback);
+void djfx_test_cc(int ch, int cc, int val);   /* djfx.c with -DDJFX_TEST: a CC as if from Control In */
 
 static VstTimeInfo ti = {.tempo = 124.0, .sampleRate = 44100, .flags = 1 << 10};
 static intptr_t master(AEffect *e, int32_t op, int32_t i, intptr_t v, void *p, float o) {
@@ -74,6 +76,7 @@ static int idx(AEffect *a, const char *name) {
 static const char *ONS[] = {"Filter", "Repeat", "Crush", "Gater", "Riser", "Drop", "Delay", "Reverb"};
 
 int main(void) {
+    setenv("FADERFX_NO_ALSA", "1", 1);   /* no ALSA port in the offline test */
     AEffect *a = VSTPluginMain(master);
     CHECK(a && a->magic == 0x56737450 && a->numInputs == 2, "effect instance");
     int fader = idx(a, "Fader");
@@ -123,6 +126,29 @@ int main(void) {
     CHECK(r2 > r1 * 0.7, "frozen tail sustains");
     a->setP(a, idx(a, "Freeze"), 0.0f);
     a->setP(a, fader, 0.0f); run(a, 400, 0, 0);
+
+    /* 1.1.0: control by MIDI CC on CONTROL CH (start 11 = MIDI channel index 10) */
+    for (int j = 0; j < 8; j++) a->setP(a, idx(a, ONS[j]), 0.0f);
+    a->setP(a, fader, 0.0f); run(a, 400, 0, 0);
+    djfx_test_cc(10, 29, 127);                            /* filter on */
+    djfx_test_cc(10, 21, 0);                              /* LP/HP all the way low-pass */
+    djfx_test_cc(10, 20, 127);                            /* fader full */
+    run(a, 60, 0, 0);
+    run(a, 200, &md, 0);
+    printf("cc: filter on + fader full on ch 11: max diff %.3f\n", md);
+    CHECK(md > 0.02, "CCs on CONTROL CH move the effect");
+    djfx_test_cc(10, 20, 0); run(a, 400, 0, 0);
+    run(a, 100, &md, 0);
+    CHECK(md < 0.01, "CC 20 = 0 brings the fader back: %.5f", md);
+    djfx_test_cc(0, 20, 127); run(a, 60, 0, 0);
+    run(a, 100, &md, 0);
+    CHECK(md < 0.01, "a CC on another channel is ignored: %.5f", md);
+    a->setP(a, idx(a, "Control Ch"), 0.0f);                /* OFF */
+    djfx_test_cc(10, 20, 127); run(a, 60, 0, 0);
+    run(a, 100, &md, 0);
+    CHECK(md < 0.01, "CONTROL CH OFF ignores CCs: %.5f", md);
+    a->setP(a, idx(a, "Control Ch"), 11.0f / 16.0f);
+    djfx_test_cc(10, 29, 0); a->setP(a, fader, 0.0f); run(a, 400, 0, 0);
 
     /* chunk round-trip */
     int flt = idx(a, "Filter LP/HP");
